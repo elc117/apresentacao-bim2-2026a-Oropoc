@@ -64,50 +64,91 @@ public synchronized void increment() {
 ```JAVA
 public class UsingIntrinsicLocks {
 
-	private boolean state;
+    private boolean state;
 
-	public synchronized void mySynchronizedMethod() {
-		state = !state;
-		// Everything in this method can only be accessed by the thread who hold the lock.
-		System.out.println("My state is:" + state);
-		// Without sync: states have no order guarantee true, true, false, true...
-		// With sync: always true, false, true, false...
-	}
+    // ────────────────────────────────────────
+    // EXEMPLO 1: synchronized no método inteiro
+    // ─────────────────────────────────────────
+    public synchronized void mySynchronizedMethod() {
+        state = !state;
+        System.out.println("My state is:" + state);
+    }
+    // uma thread por vez executa o método inteiro.
+    // resultado: sempre true, false, true, false...
+    // sem synchronized: true, true, false, true... (imprevisível)
 
-	public void mySynchronizedBlock() {
-		System.out.println("Who owns my lock: " + Thread.currentThread().getName());
-		synchronized (this) {
-			state = !state;
-			System.out.println("Who owns my lock after state changes: " + Thread.currentThread().getName());
-			System.out.println("State is: " + state);
-			System.out.println("====");
-		}
-	}
+    // ─────────────────────────────────────────
+    // EXEMPLO 2: synchronized só em um bloco
+    // ─────────────────────────────────────────
+    public void mySynchronizedBlock() {
+        // esta linha roda FORA do lock — qualquer thread executa livremente
+		// aqui dá para ver quando um thread vai dar o start
+        System.out.println("Who owns my lock: " + Thread.currentThread().getName());
 
-	public synchronized void reentrancy() {
-		System.out.println("Before acquiring again");
-		// Tries to hold it without releasing the lock
-		synchronized (this) {
-			System.out.println("I'm own it! " + Thread.currentThread().getName());
-		}
-	}
+        synchronized (this) {
+            // só aqui é protegido — apenas uma thread por vez
+            state = !state;
+            System.out.println("State is: " + state);
+        }
+    }
+	// a saída pode ser vários "homl" com threads aleatórias, mas o state não vai ser, vai ser um por vez
+    // útil quando só uma parte do método precisa de proteção.
+    // o resto roda em paralelo normalmente — melhor desempenho.
 
-	public static void main(String[] args) throws InterruptedException {
-		var executor = Executors.newCachedThreadPool();
-		var self = new UsingIntrinsicLocks();
-		for (int i = 0; i < 100; i++) {
-			executor.execute(() -> self.mySynchronizedMethod());
-		}
-		Thread.sleep(1000);
-		for (int i = 0; i < 10; i++) {
-			executor.execute(() -> self.mySynchronizedBlock());
-		}
-		Thread.sleep(1000);
-		for (int i = 0; i < 10; i++) {
-			executor.execute(() -> self.reentrancy());
-		}
-		executor.shutdown();
-	}
+    // ─────────────────────────────────────────
+    // EXEMPLO 3: reentrância
+    // ─────────────────────────────────────────
+    public synchronized void reentrancy() {
+    // thread-1 entra aqui e pega o lock do objeto
+    // thread-2 tenta entrar mas fica bloqueada esperando
+    
+    System.out.println("Before acquiring again");
+    // thread-1 printa "Before acquiring again"
+
+    synchronized (this) {
+        // thread-1 tenta pegar o lock de novo
+        // como é reentrante, ele passa direto, sem travar
+        
+        System.out.println("I'm own it! " + Thread.currentThread().getName());
+        // thread-1 printa "I'm own it! pool-1-thread-1"
+    }
+    // thread-1 libera o lock interno
+
+} // thread-1 libera o lock externo 
+  // thread-2 repete o mesmo processo
+    // isso mostra que o lock interno é reentrante:
+    // não causa deadlock.
+
+
+    // ─────────────────────────────────────────
+    // MAIN: dispara as threads para cada método
+    // ─────────────────────────────────────────
+    public static void main(String[] args) throws InterruptedException {
+        var executor = Executors.newCachedThreadPool();
+        var self = new UsingIntrinsicLocks();
+
+        // 100 threads no método 1
+        for (int i = 0; i < 100; i++) {
+            executor.execute(() -> self.mySynchronizedMethod());
+        }
+
+        Thread.sleep(1000);
+		//poderia ser join()
+
+        // 10 threads no método 2
+        for (int i = 0; i < 10; i++) {
+            executor.execute(() -> self.mySynchronizedBlock());
+        }
+
+        Thread.sleep(1000);
+
+        // 10 threads no método 3
+        for (int i = 0; i < 10; i++) {
+            executor.execute(() -> self.reentrancy());
+        }
+
+        executor.shutdown();
+    }
 }
 ```
 
