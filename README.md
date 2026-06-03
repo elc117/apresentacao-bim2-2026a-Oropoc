@@ -8,7 +8,7 @@
   <img width="1078" height="310" alt="gravação paradigmas 2 0" src="https://github.com/user-attachments/assets/e4d7409e-cc2c-4586-af4d-82c704b5b4a6" />
 
   O erro acontece porque o as trheads acessam e modificam os dados ao mesmo tempo (sem sincronização)
-  #
+#
   
 - Correção do problema:
   
