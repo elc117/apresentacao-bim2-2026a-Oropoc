@@ -55,9 +55,60 @@ public synchronized void increment() {
 
 # Segunda Parte:
 
+- URL do projeto: https://github.com/LeonardoZ/java-concurrency-patterns/tree/master
 
+  É um repositório educacional que tem exemplos de mecanismos de concorrencia em JAVA, tem vários exemplos 
+#
+- Trecho pegado de exemplo: https://github.com/LeonardoZ/java-concurrency-patterns/blob/master/src/main/java/br/com/leonardoz/features/locks/UsingIntrinsicLocks.java
 
+```JAVA
+public class UsingIntrinsicLocks {
 
+	private boolean state;
 
+	public synchronized void mySynchronizedMethod() {
+		state = !state;
+		// Everything in this method can only be accessed by the thread who hold the lock.
+		System.out.println("My state is:" + state);
+		// Without sync: states have no order guarantee true, true, false, true...
+		// With sync: always true, false, true, false...
+	}
+
+	public void mySynchronizedBlock() {
+		System.out.println("Who owns my lock: " + Thread.currentThread().getName());
+		synchronized (this) {
+			state = !state;
+			System.out.println("Who owns my lock after state changes: " + Thread.currentThread().getName());
+			System.out.println("State is: " + state);
+			System.out.println("====");
+		}
+	}
+
+	public synchronized void reentrancy() {
+		System.out.println("Before acquiring again");
+		// Tries to hold it without releasing the lock
+		synchronized (this) {
+			System.out.println("I'm own it! " + Thread.currentThread().getName());
+		}
+	}
+
+	public static void main(String[] args) throws InterruptedException {
+		var executor = Executors.newCachedThreadPool();
+		var self = new UsingIntrinsicLocks();
+		for (int i = 0; i < 100; i++) {
+			executor.execute(() -> self.mySynchronizedMethod());
+		}
+		Thread.sleep(1000);
+		for (int i = 0; i < 10; i++) {
+			executor.execute(() -> self.mySynchronizedBlock());
+		}
+		Thread.sleep(1000);
+		for (int i = 0; i < 10; i++) {
+			executor.execute(() -> self.reentrancy());
+		}
+		executor.shutdown();
+	}
+}
+```
 
   
